@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مولّد أسماء الكريسماس 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "opentype": "https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.module.js",
+  "fflate": "https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js"
+} }
+</script>
+<style>
+  :root { --bg:#14181d; --panel:#1d232b; --line:#2c3540; --ink:#eef2f6; --mute:#93a0ae; --acc:#e23b4e; --acc2:#2fa86b; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); font-family:'Cairo', system-ui, sans-serif; }
+  .app { display:grid; grid-template-columns: 360px 1fr; height:100vh; }
+  aside { background:var(--panel); border-left:1px solid var(--line); padding:18px 18px 24px; overflow-y:auto; }
+  h1 { font-size:19px; margin:0 0 2px; }
+  .sub { color:var(--mute); font-size:13px; margin:0 0 16px; }
+  label { display:block; font-size:13px; color:var(--mute); margin:12px 0 5px; }
+  input[type=text], textarea, select { width:100%; background:#111519; color:var(--ink); border:1px solid var(--line); border-radius:9px; padding:10px 12px; font:inherit; }
+  #name { font-size:22px; font-weight:700; padding:12px 14px; }
+  textarea { min-height:110px; resize:vertical; direction:auto; }
+  input:focus, textarea:focus, select:focus { outline:2px solid var(--acc); outline-offset:-1px; }
+  .seg { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .seg button { flex:1; background:#111519; color:var(--ink); border:1px solid var(--line); border-radius:9px; padding:9px; font:inherit; cursor:pointer; }
+  .seg button.on { background:var(--acc); border-color:var(--acc); }
+  .row { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  .rng { display:flex; align-items:center; gap:8px; }
+  .rng input { flex:1; accent-color:var(--acc); }
+  .rng output { min-width:52px; text-align:left; font-variant-numeric:tabular-nums; font-size:13px; direction:ltr; }
+  details { margin-top:14px; border-top:1px solid var(--line); padding-top:6px; }
+  summary { cursor:pointer; color:var(--mute); font-size:13px; padding:6px 0; }
+  .btn { width:100%; margin-top:10px; border:0; border-radius:10px; padding:13px; font:inherit; font-weight:700; font-size:15px; cursor:pointer; color:#fff; background:var(--acc); }
+  .btn.alt { background:#2a323c; }
+  .btn.green { background:var(--acc2); }
+  .btn:disabled { opacity:.5; cursor:wait; }
+  .colors { display:flex; gap:10px; align-items:center; }
+  .colors input { width:44px; height:32px; border:1px solid var(--line); background:none; border-radius:6px; padding:0; }
+  .hint { color:var(--mute); font-size:12px; line-height:1.6; margin-top:6px; }
+  .msg { font-size:13px; margin-top:8px; min-height:18px; }
+  main { position:relative; }
+  #view { position:absolute; inset:0; }
+  .badge { position:absolute; top:14px; left:14px; background:rgba(0,0,0,.45); padding:6px 10px; border-radius:8px; font-size:13px; direction:ltr; }
+  .tabs { display:flex; gap:6px; margin-top:4px; }
+  .tabs button { flex:1; background:none; border:0; border-bottom:2px solid transparent; color:var(--mute); padding:8px; font:inherit; cursor:pointer; }
+  .tabs button.on { color:var(--ink); border-color:var(--acc); }
+  @media (max-width: 760px) { .app { grid-template-columns:1fr; grid-template-rows: 46vh auto; height:auto; } main { height:46vh; order:-1; } aside { border:0; } }
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <h1>🎄 مولّد أسماء 3D</h1>
+  <p class="sub">اكتب الاسم ← يتولّد على طول ← نزّل واطبع</p>
+
+  <div class="tabs"><button id="tabOne" class="on">اسم واحد</button><button id="tabMany">أسماء كتير</button></div>
+
+  <div id="paneOne">
+    <label for="name">الاسم</label>
+    <input id="name" type="text" value="Gav" autocomplete="off" spellcheck="false">
+  </div>
+  <div id="paneMany" hidden>
+    <label for="names">كل اسم في سطر</label>
+    <textarea id="names" spellcheck="false">Finn
+Beverley
+Jay
+محمد</textarea>
+    <div class="hint">المعاينة بتعرض أول اسم. زرار التنزيل بيطلّع ملف لكل اسم في zip واحد.</div>
+  </div>
+
+  <label>الشكل</label>
+  <div class="seg" id="mode">
+    <button data-v="tree" class="on">🎄 شجرة</button>
+    <button data-v="ball">🔴 كورة</button>
+    <button data-v="star">⭐ نجمة</button>
+    <button data-v="bell">🔔 جرس</button>
+    <button data-v="key">🔑 ميدالية</button>
+  </div>
+
+  <label for="font">الخط</label>
+  <select id="font"></select>
+  <div class="hint" id="fontNote"></div>
+
+  <label>ألوان المعاينة (الجسم / الاسم)</label>
+  <div class="colors"><input type="color" id="cBase" value="#d42a3c"><input type="color" id="cText" value="#ffffff"></div>
+
+  <details>
+    <summary>إعدادات المقاسات</summary>
+    <label>العرض/الطول الكلي (مم)</label>
+    <div class="rng"><input type="range" id="size" min="40" max="140" step="1" value="80"><output></output></div>
+    <div class="row">
+      <div><label>سُمك الجسم (مم)</label><div class="rng"><input type="range" id="baseT" min="1.6" max="6" step="0.2" value="3"><output></output></div></div>
+      <div><label>ارتفاع الاسم (مم)</label><div class="rng"><input type="range" id="textT" min="0.6" max="4" step="0.2" value="1.6"><output></output></div></div>
+    </div>
+    <label>عرض الاسم بالنسبة للشكل</label>
+    <div class="rng"><input type="range" id="textWidth" min="0.6" max="1.4" step="0.01" value="1.05"><output></output></div>
+    <label>مكان الاسم (فوق/تحت)</label>
+    <div class="rng"><input type="range" id="textY" min="0.2" max="0.7" step="0.01" value="0.45"><output></output></div>
+    <label>حافة الجسم حوالين الاسم (مم)</label>
+    <div class="rng"><input type="range" id="backing" min="0" max="4" step="0.1" value="1.5"><output></output></div>
+    <div class="row">
+      <div><label>قطر خرم الحبل (مم)</label><div class="rng"><input type="range" id="hole" min="2" max="8" step="0.5" value="4"><output></output></div></div>
+      <div><label>سُمك الحلقة (مم)</label><div class="rng"><input type="range" id="ringWall" min="1.5" max="5" step="0.5" value="2.5"><output></output></div></div>
+    </div>
+    <button class="btn alt" id="reset" style="margin-top:14px">رجّع الإعدادات الأصلية</button>
+  </details>
+
+  <button class="btn" id="dl3mf">⬇ تنزيل ملف 3MF (لونين)</button>
+  <button class="btn alt" id="dlStl">⬇ تنزيل STL (جسم + اسم)</button>
+  <button class="btn green" id="dlAll" hidden>⬇ تنزيل كل الأسماء</button>
+  <div class="msg" id="msg"></div>
+  <div class="hint">ملف 3MF بيفتح في Bambu Studio / Orca كجسم واحد من قطعتين: اختار لون للجسم ولون للاسم. لو هتطبع بلون واحد وتلوّن بالتغيير، غيّر الفلامنت عند ارتفاع الجسم (<span id="swapH">3.0</span> مم).</div>
+</aside>
+<main>
+  <div id="view"></div>
+  <div class="badge" id="dims"></div>
+</main>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as opentypeNS from 'opentype';
+import * as fflate from 'fflate';
+const opentype = opentypeNS.default || opentypeNS;
+
+// Core geometry: 2D outlines (Clipper) -> extruded meshes (THREE) -> STL / 3MF
+// Works in browser and Node. Units: millimetres.
+function makeCore(THREE, ClipperLib, fflate) {
+  const S = 1000; // clipper integer scale
+  const toC = (pts) => pts.map(([x, y]) => ({ X: Math.round(x * S), Y: Math.round(y * S) }));
+
+  function union(polys) {
+    const c = new ClipperLib.Clipper();
+    c.AddPaths(polys, ClipperLib.PolyType.ptSubject, true);
+    const out = new ClipperLib.Paths();
+    c.Execute(ClipperLib.ClipType.ctUnion, out, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+    return out;
+  }
+  function diff(a, b) {
+    const c = new ClipperLib.Clipper();
+    c.AddPaths(a, ClipperLib.PolyType.ptSubject, true);
+    c.AddPaths(b, ClipperLib.PolyType.ptClip, true);
+    const out = new ClipperLib.Paths();
+    c.Execute(ClipperLib.ClipType.ctDifference, out, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+    return out;
+  }
+  function offset(polys, d) {
+    const co = new ClipperLib.ClipperOffset(2, 0.05 * S);
+    co.AddPaths(polys, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
+    const out = new ClipperLib.Paths();
+    co.Execute(out, d * S);
+    return out;
+  }
+  const circle = (cx, cy, r, n = 64) => [
+    toC(Array.from({ length: n }, (_, i) => [cx + r * Math.cos((i / n) * 2 * Math.PI), cy + r * Math.sin((i / n) * 2 * Math.PI)]))];
+  const rect = (x0, y0, x1, y1) => [toC([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])];
+  function bounds(polys) {
+    let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+    for (const p of polys) for (const q of p) { a = Math.min(a, q.X); b = Math.min(b, q.Y); c = Math.max(c, q.X); d = Math.max(d, q.Y); }
+    return { minX: a / S, minY: b / S, maxX: c / S, maxY: d / S };
+  }
+  const translate = (polys, dx, dy) => polys.map((p) => p.map((q) => ({ X: q.X + Math.round(dx * S), Y: q.Y + Math.round(dy * S) })));
+  const scale = (polys, k) => polys.map((p) => p.map((q) => ({ X: Math.round(q.X * k), Y: Math.round(q.Y * k) })));
+  const area = (p) => Math.abs(ClipperLib.Clipper.Area(p)) / (S * S);
+  const clean = (polys) => ClipperLib.Clipper.CleanPolygons(polys, 0.02 * S).filter((p) => p.length >= 3 && area(p) > 0.05);
+
+  // ---------- Fir tree with serrated edges ----------
+  function tree(H) {
+    const W = H * 0.8;
+    const trunkH = H * 0.08, trunkHW = W * 0.07;
+    const fH = H - trunkH;
+    // tiers from top: [start halfwidth, start y, bottom halfwidth, bottom y]
+    const tiers = [
+      [0, H, 0.24 * W, trunkH + 0.66 * fH],
+      [0.11 * W, trunkH + 0.74 * fH, 0.37 * W, trunkH + 0.34 * fH],
+      [0.17 * W, trunkH + 0.43 * fH, 0.5 * W, trunkH],
+    ];
+    const tooth = H * 0.045;
+    const polys = [];
+    tiers.forEach(([x0, y0, x1, y1], k) => {
+      const R = [[x0, y0]];
+      const n = 2 + k; // notches along the slanted edge
+      for (let i = 1; i <= n; i++) {
+        const t = i / n;
+        const px = x0 + (x1 - x0) * t, py = y0 + (y1 - y0) * t;
+        R.push([px + tooth * 0.5, py - tooth * 0.35]); // branch tip
+        if (i < n) {
+          const tb = t + 0.35 / n;
+          R.push([x0 + (x1 - x0) * tb - tooth * 0.55, y0 + (y1 - y0) * tb + tooth * 0.15]); // notch
+        }
+      }
+      // jagged bottom edge back to centre
+      const m = 3 + k;
+      for (let i = 1; i <= m; i++) {
+        const xa = (x1 + tooth * 0.5) * (1 - (i - 0.5) / m), xb = (x1 + tooth * 0.5) * (1 - i / m);
+        R.push([xa, y1 - tooth * 0.55 - tooth * 0.35]);
+        R.push([xb, y1 - tooth * 0.15]);
+      }
+      const L = R.slice(1).reverse().map(([x, y]) => [-x, y]);
+      const pts = x0 === 0 ? [...R, ...L.slice(1)] : [[-x0, y0], ...R, ...L.slice(0, -1)];
+      polys.push(...ClipperLib.Clipper.SimplifyPolygon(toC(pts), ClipperLib.PolyFillType.pftNonZero));
+    });
+    polys.push(...rect(-trunkHW, 0, trunkHW, trunkH + tooth));
+    return { polys: union(polys), W, trunkH };
+  }
+
+  function chaikin(pts, it = 3) {
+    for (let k = 0; k < it; k++) {
+      const o = [pts[0]];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const [a, b] = [pts[i], pts[i + 1]];
+        o.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+      }
+      o.push(pts[pts.length - 1]);
+      pts = o;
+    }
+    return pts;
+  }
+  const mirror = (R) => [...R, ...R.slice(1, -1).reverse().map(([x, y]) => [-x, y])];
+
+  function ball(H) {
+    const R = H * 0.44, cy = R;
+    const capW = R * 0.3, capH = R * 0.16;
+    const polys = union([...circle(0, cy, R, 128), ...rect(-capW, 2 * R - capH * 0.6, capW, 2 * R + capH)]);
+    return { polys, W: 2 * R, top: 2 * R + capH, bottom: 0 };
+  }
+  function star(H) {
+    const R = H * 0.52, r = R * 0.5, cy = R * 0.81;
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const a = Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r : R;
+      pts.push([rr * Math.cos(a), cy + rr * Math.sin(a)]);
+    }
+    let polys = [toC(pts)];
+    polys = offset(offset(polys, -2), 2); // round the points a little
+    polys = offset(offset(polys, 1.5), -1.5); // and the inner corners
+    return { polys, W: 2 * R * Math.cos(Math.PI / 10), top: cy + R - 0.6, bottom: 0 };
+  }
+  function bell(H) {
+    const n = [[0, 1], [0.16, 0.985], [0.25, 0.92], [0.29, 0.78], [0.31, 0.6], [0.35, 0.42], [0.43, 0.27], [0.5, 0.19], [0.5, 0.13], [0, 0.13]];
+    const R = chaikin(n.slice(0, -1), 3).map(([x, y]) => [x * H, y * H]);
+    R.push([0, 0.13 * H]);
+    const body = ClipperLib.Clipper.SimplifyPolygon(toC(mirror(R)), ClipperLib.PolyFillType.pftNonZero);
+    const polys = union([...body, ...circle(0, 0.09 * H, 0.085 * H)]);
+    return { polys, W: 0.66 * H, top: H, bottom: 0.005 * H };
+  }
+  function outline(kind, H) {
+    if (kind === 'ball') return ball(H);
+    if (kind === 'star') return star(H);
+    if (kind === 'bell') return bell(H);
+    const t = tree(H);
+    return { polys: t.polys, W: t.W, top: H, bottom: t.trunkH };
+  }
+
+  // ---------- Text outline from an opentype path ----------
+  function textPolys(font, str, size = 100) {
+    const path = font.getPath(str, 0, 0, size, { kerning: true, features: { liga: true, rlig: true } });
+    const polys = [];
+    let cur = [], x = 0, y = 0;
+    const seg = 10;
+    const push = (px, py) => cur.push([px, -py]);
+    for (const c of path.commands) {
+      if (c.type === 'M') { if (cur.length > 2) polys.push(cur); cur = []; push(c.x, c.y); x = c.x; y = c.y; }
+      else if (c.type === 'L') { push(c.x, c.y); x = c.x; y = c.y; }
+      else if (c.type === 'Q') {
+        for (let i = 1; i <= seg; i++) { const t = i / seg, u = 1 - t; push(u * u * x + 2 * u * t * c.x1 + t * t * c.x, u * u * y + 2 * u * t * c.y1 + t * t * c.y); }
+        x = c.x; y = c.y;
+      } else if (c.type === 'C') {
+        for (let i = 1; i <= seg; i++) {
+          const t = i / seg, u = 1 - t;
+          push(u * u * u * x + 3 * u * u * t * c.x1 + 3 * u * t * t * c.x2 + t * t * t * c.x, u * u * u * y + 3 * u * u * t * c.y1 + 3 * u * t * t * c.y2 + t * t * t * c.y);
+        }
+        x = c.x; y = c.y;
+      } else if (c.type === 'Z') { if (cur.length > 2) polys.push(cur); cur = []; }
+    }
+    if (cur.length > 2) polys.push(cur);
+    if (!polys.length) return [];
+    return clean(union(polys.map(toC)));
+  }
+
+  // ---------- Build the 2D layout ----------
+  function layout(font, p) {
+    let text = textPolys(font, p.name || ' ', 100);
+    const out = { text: [], base: [], info: {} };
+    if (!text.length) return out;
+    let b = bounds(text);
+    const tw = b.maxX - b.minX, th = b.maxY - b.minY;
+    const ringR = p.hole / 2 + p.ringWall;
+
+    if (p.mode !== 'key') {
+      const T = outline(p.mode, p.size);
+      const targetW = T.W * p.textWidth;
+      const k = Math.min(targetW / tw, (p.size * 0.42) / th);
+      text = scale(text, k);
+      b = bounds(text);
+      const cy = T.bottom + (T.top - T.bottom) * p.textY;
+      text = translate(text, -(b.minX + b.maxX) / 2, cy - (b.minY + b.maxY) / 2);
+      let base = T.polys;
+      const ry = T.top + ringR * 0.35;
+      base = union([...base, ...circle(0, ry, ringR)]);
+      if (p.backing > 0) base = union([...base, ...offset(text, p.backing)]);
+      base = diff(base, circle(0, ry, p.hole / 2));
+      out.base = clean(base);
+    } else {
+      // keychain: name with a solid backing and a ring
+      const k = p.size / tw;
+      text = scale(text, k);
+      b = bounds(text);
+      text = translate(text, -b.minX, -b.minY);
+      b = bounds(text);
+      const pad = Math.max(p.backing, 1.2);
+      let base = offset(text, pad);
+      base = offset(offset(base, 1.5), -1.5); // smooth gaps
+      const midY = (b.maxY - b.minY) * 0.5;
+      const rtl = p.rtl;
+      const cx = rtl ? b.maxX + pad + ringR - 1.0 : b.minX - pad - ringR + 1.0;
+      const barX0 = rtl ? b.maxX - 2 : cx, barX1 = rtl ? cx : b.minX + 2;
+      base = union([...base, ...circle(cx, midY, ringR), ...rect(barX0, midY - ringR * 0.55, barX1, midY + ringR * 0.55)]);
+      base = diff(base, circle(cx, midY, p.hole / 2));
+      out.base = clean(base);
+    }
+    out.text = clean(text);
+    const bb = bounds(out.base);
+    out.info = { w: bb.maxX - bb.minX, h: bb.maxY - bb.minY };
+    return out;
+  }
+
+  // ---------- 2D polys -> THREE shapes (with holes) ----------
+  function shapes(polys) {
+    const c = new ClipperLib.Clipper();
+    c.AddPaths(polys, ClipperLib.PolyType.ptSubject, true);
+    const tree = new ClipperLib.PolyTree();
+    c.Execute(ClipperLib.ClipType.ctUnion, tree, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+    const res = [];
+    const v = (p) => p.map((q) => new THREE.Vector2(q.X / S, q.Y / S));
+    const walk = (node) => {
+      for (const ch of node.Childs()) {
+        if (!ch.IsHole()) {
+          const sh = new THREE.Shape(v(ch.Contour()));
+          for (const h of ch.Childs()) { sh.holes.push(new THREE.Path(v(h.Contour()))); walk(h); }
+          res.push(sh);
+        }
+      }
+    };
+    walk(tree);
+    return res;
+  }
+  function extrude(polys, z0, depth) {
+    const g = new THREE.ExtrudeGeometry(shapes(polys), { depth, bevelEnabled: false, curveSegments: 1, steps: 1 });
+    g.translate(0, 0, z0);
+    return g;
+  }
+
+  function build(font, p) {
+    const L = layout(font, p);
+    if (!L.base.length) return null;
+    const base = extrude(L.base, 0, p.baseT);
+    const text = L.text.length ? extrude(L.text, p.baseT, p.textT) : null;
+    return { base, text, info: L.info };
+  }
+
+  // ---------- Export ----------
+  function tris(geom) {
+    const g = geom.index ? geom.toNonIndexed() : geom;
+    return g.attributes.position.array;
+  }
+  function stl(geom) {
+    const a = tris(geom), n = a.length / 9;
+    const buf = new ArrayBuffer(84 + n * 50), dv = new DataView(buf);
+    dv.setUint32(80, n, true);
+    let o = 84;
+    for (let i = 0; i < n; i++) {
+      const j = i * 9;
+      const ux = a[j + 3] - a[j], uy = a[j + 4] - a[j + 1], uz = a[j + 5] - a[j + 2];
+      const vx = a[j + 6] - a[j], vy = a[j + 7] - a[j + 1], vz = a[j + 8] - a[j + 2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const l = Math.hypot(nx, ny, nz) || 1;
+      dv.setFloat32(o, nx / l, true); dv.setFloat32(o + 4, ny / l, true); dv.setFloat32(o + 8, nz / l, true); o += 12;
+      for (let k = 0; k < 9; k++) { dv.setFloat32(o, a[j + k], true); o += 4; }
+      o += 2;
+    }
+    return new Uint8Array(buf);
+  }
+  // indexed mesh with merged vertices
+  function meshXML(geom) {
+    const a = tris(geom), map = new Map(), verts = [], idx = [];
+    for (let i = 0; i < a.length; i += 3) {
+      const key = `${a[i].toFixed(4)},${a[i + 1].toFixed(4)},${a[i + 2].toFixed(4)}`;
+      let id = map.get(key);
+      if (id === undefined) { id = verts.length; map.set(key, id); verts.push(key.split(',')); }
+      idx.push(id);
+    }
+    let s = '<mesh><vertices>';
+    for (const v of verts) s += `<vertex x="${v[0]}" y="${v[1]}" z="${v[2]}"/>`;
+    s += '</vertices><triangles>';
+    for (let i = 0; i < idx.length; i += 3) if (idx[i] !== idx[i + 1] && idx[i + 1] !== idx[i + 2] && idx[i] !== idx[i + 2]) s += `<triangle v1="${idx[i]}" v2="${idx[i + 1]}" v3="${idx[i + 2]}"/>`;
+    return s + '</triangles></mesh>';
+  }
+  function threeMF(parts, name, colors) {
+    // parts: [{geom, name}] -> one object made of parts (slicers load it as a multi-part object)
+    let objs = '', comps = '';
+    parts.forEach((pt, i) => {
+      objs += `<object id="${i + 2}" name="${pt.name}" type="model" pid="1" pindex="${i}">${meshXML(pt.geom)}</object>`;
+      comps += `<component objectid="${i + 2}"/>`;
+    });
+    const id = parts.length + 2;
+    const mats = colors.map((c, i) => `<base name="${parts[i] ? parts[i].name : 'm' + i}" displaycolor="${c}FF"/>`).join('');
+    const model = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+<metadata name="Title">${name}</metadata>
+<resources><basematerials id="1">${mats}</basematerials>${objs}<object id="${id}" name="${name}" type="model"><components>${comps}</components></object></resources>
+<build><item objectid="${id}" transform="1 0 0 0 1 0 0 0 1 120 120 0"/></build></model>`;
+    const enc = (s) => fflate.strToU8(s);
+    return fflate.zipSync({
+      '[Content_Types].xml': enc('<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/></Types>'),
+      '_rels/.rels': enc('<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Target="/3D/3dmodel.model" Id="rel0" Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>'),
+      '3D/3dmodel.model': enc(model),
+    });
+  }
+  return { build, stl, threeMF, layout };
+}
+
+
+const FONTS = {"dancing": {"label": "Dancing Script", "script": "latin", "url": "https://cdn.jsdelivr.net/npm/@fontsource/dancing-script@5/files/dancing-script-latin-700-normal.woff"}, "pacifico": {"label": "Pacifico", "script": "latin", "url": "https://cdn.jsdelivr.net/npm/@fontsource/pacifico@5/files/pacifico-latin-400-normal.woff"}, "lobster": {"label": "Lobster", "script": "latin", "url": "https://cdn.jsdelivr.net/npm/@fontsource/lobster@5/files/lobster-latin-400-normal.woff"}, "vibes": {"label": "Great Vibes (رفيع)", "script": "latin", "url": "https://cdn.jsdelivr.net/npm/@fontsource/great-vibes@5/files/great-vibes-latin-400-normal.woff"}, "marhey": {"label": "مرحي Marhey", "script": "arabic", "url": "https://cdn.jsdelivr.net/npm/@fontsource/marhey@5/files/marhey-arabic-700-normal.woff"}, "lalezar": {"label": "لاله‌زار Lalezar", "script": "arabic", "url": "https://cdn.jsdelivr.net/npm/@fontsource/lalezar@5/files/lalezar-arabic-400-normal.woff"}, "lemonada": {"label": "ليمونادة Lemonada", "script": "arabic", "url": "https://cdn.jsdelivr.net/npm/@fontsource/lemonada@5/files/lemonada-arabic-700-normal.woff"}, "messiri": {"label": "المسيري El Messiri", "script": "arabic", "url": "https://cdn.jsdelivr.net/npm/@fontsource/el-messiri@5/files/el-messiri-arabic-700-normal.woff"}};
+const core = makeCore(THREE, window.ClipperLib, fflate);
+const $ = (id) => document.getElementById(id);
+const AR = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/;
+
+// ---------- fonts ----------
+const parsed = {};
+function b64ToBuf(b) { const s = atob(b), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u.buffer; }
+const raw = {};
+await Promise.all(Object.entries(FONTS).map(async ([k, f]) => { raw[k] = await (await fetch(f.url)).arrayBuffer(); }));
+function getFont(key) { if (!parsed[key]) parsed[key] = opentype.parse(raw[key]); return parsed[key]; }
+const sel = $('font');
+for (const [grp, label] of [['latin', 'إنجليزي'], ['arabic', 'عربي']]) {
+  const og = document.createElement('optgroup'); og.label = label;
+  for (const [k, f] of Object.entries(FONTS)) if (f.script === grp) { const o = document.createElement('option'); o.value = k; o.textContent = f.label; og.appendChild(o); }
+  sel.appendChild(og);
+}
+let lastLatin = Object.keys(FONTS).find((k) => FONTS[k].script === 'latin');
+let lastArabic = Object.keys(FONTS).find((k) => FONTS[k].script === 'arabic');
+function fontFor(name) {
+  const k = sel.value, want = AR.test(name) ? 'arabic' : 'latin';
+  if (FONTS[k].script === want) return k;
+  return want === 'arabic' ? lastArabic : lastLatin;
+}
+
+// ---------- params ----------
+const NUM = ['size', 'baseT', 'textT', 'textWidth', 'textY', 'backing', 'hole', 'ringWall'];
+const DEFAULTS = {}; NUM.forEach((k) => (DEFAULTS[k] = $(k).value));
+let mode = 'tree', many = false;
+function fmt(k, v) { return k === 'textWidth' || k === 'textY' ? Math.round(v * 100) + '%' : (+v).toFixed(1) + (k === 'size' ? ' mm' : ''); }
+NUM.forEach((k) => { const o = $(k).nextElementSibling; o.textContent = fmt(k, $(k).value); $(k).addEventListener('input', () => { o.textContent = fmt(k, $(k).value); schedule(); }); });
+function params(name) {
+  const p = { name, mode, rtl: AR.test(name) };
+  NUM.forEach((k) => (p[k] = parseFloat($(k).value)));
+  if (mode === 'key') p.size = Math.round(p.size * 0.75);
+  return p;
+}
+function namesList() { return $('names').value.split('\n').map((s) => s.trim()).filter(Boolean); }
+function currentName() { return many ? (namesList()[0] || '') : $('name').value.trim(); }
+
+// ---------- 3D view ----------
+const view = $('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+view.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x14181d);
+const camera = new THREE.PerspectiveCamera(35, 1, 1, 2000);
+camera.position.set(0, -60, 190);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x334455, 1.1));
+const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(-60, 80, 160); scene.add(key);
+const rim = new THREE.DirectionalLight(0xffffff, 0.6); rim.position.set(80, -40, 60); scene.add(rim);
+const matBase = new THREE.MeshStandardMaterial({ color: $('cBase').value, roughness: 0.55 });
+const matText = new THREE.MeshStandardMaterial({ color: $('cText').value, roughness: 0.45 });
+$('cBase').oninput = () => matBase.color.set($('cBase').value);
+$('cText').oninput = () => matText.color.set($('cText').value);
+const group = new THREE.Group(); scene.add(group);
+function resize() { const w = view.clientWidth, h = view.clientHeight; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(view); resize();
+(function loop() { controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
+
+let current = null, firstFit = true;
+function regenerate() {
+  const name = currentName();
+  for (const c of [...group.children]) { c.geometry.dispose(); group.remove(c); }
+  current = null;
+  if (!name) { $('dims').textContent = ''; setMsg('اكتب اسم'); return; }
+  const fk = fontFor(name);
+  $('fontNote').textContent = fk !== sel.value ? `الاسم ده ${AR.test(name) ? 'عربي' : 'إنجليزي'} — هستخدم خط ${FONTS[fk].label}` : '';
+  const p = params(name);
+  const r = core.build(getFont(fk), p);
+  if (!r) { setMsg('الخط ده مافيهوش الحروف دي'); return; }
+  current = { name, p, ...r };
+  group.add(new THREE.Mesh(r.base, matBase));
+  if (r.text) group.add(new THREE.Mesh(r.text, matText));
+  group.position.set(0, 0, 0);
+  const box = new THREE.Box3().setFromObject(group), c = box.getCenter(new THREE.Vector3());
+  group.position.set(-c.x, -c.y, 0);
+  if (firstFit) { const sz = box.getSize(new THREE.Vector3()); const d = Math.max(sz.x, sz.y) * 2.1 + 40; controls.target.set(0, 0, 0); camera.position.set(0, -d * 0.3, d); firstFit = false; }
+  $('dims').textContent = `${r.info.w.toFixed(1)} × ${r.info.h.toFixed(1)} × ${(p.baseT + p.textT).toFixed(1)} mm`;
+  $('swapH').textContent = p.baseT.toFixed(1);
+  setMsg('');
+}
+let timer = 0;
+function schedule() { clearTimeout(timer); timer = setTimeout(regenerate, 120); }
+
+// ---------- UI wiring ----------
+$('name').addEventListener('input', schedule);
+$('names').addEventListener('input', schedule);
+sel.addEventListener('change', () => { if (FONTS[sel.value].script === 'latin') lastLatin = sel.value; else lastArabic = sel.value; schedule(); });
+document.querySelectorAll('#mode button').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('on', x === b));
+  mode = b.dataset.v; firstFit = true;
+  const ty = { tree: 0.45, ball: 0.5, star: 0.47, bell: 0.55, key: 0.45 }[mode];
+  $('textY').value = ty; $('textY').nextElementSibling.textContent = fmt('textY', ty); schedule();
+});
+function setTab(m) {
+  many = m; $('tabOne').classList.toggle('on', !m); $('tabMany').classList.toggle('on', m);
+  $('paneOne').hidden = m; $('paneMany').hidden = !m; $('dlAll').hidden = !m;
+  $('dl3mf').hidden = m; $('dlStl').hidden = m; schedule();
+}
+$('tabOne').onclick = () => setTab(false);
+$('tabMany').onclick = () => setTab(true);
+$('reset').onclick = () => { NUM.forEach((k) => { $(k).value = DEFAULTS[k]; $(k).nextElementSibling.textContent = fmt(k, DEFAULTS[k]); }); schedule(); };
+function setMsg(t, ok) { $('msg').textContent = t; $('msg').style.color = ok ? '#5fd39a' : '#f3a2ab'; }
+
+// ---------- downloads ----------
+let dlCap = null;
+(async () => { try { if (window.claude && window.claude.use) dlCap = await window.claude.use('downloads'); } catch (e) {} })();
+const safe = (s) => s.replace(/[\\/:*?"<>|]+/g, '').trim() || 'name';
+const ALLOWED = ['zip', 'txt', 'json', 'html'];
+async function save(filename, bytes) {
+  const ext = filename.split('.').pop();
+  if (dlCap) {
+    // inside Claude: only some extensions are allowed, so 3D files go inside a .zip
+    let fn = filename, data = bytes;
+    if (!ALLOWED.includes(ext)) { const z = {}; z[filename] = bytes; data = fflate.zipSync(z); fn = filename.replace(/\.[^.]+$/, '') + '.zip'; }
+    try { await dlCap.save({ filename: fn, data }); setMsg('تمام ✔ اتنزّل ' + fn, true); }
+    catch (e) { setMsg(e && e.code === 'declined' ? 'اتلغى التنزيل' : 'التنزيل مش متاح هنا: ' + (e && e.message || e)); }
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes])); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  setMsg('تمام ✔ اتنزّل ' + filename, true);
+}
+function mf(r, name) {
+  const parts = [{ geom: r.base, name: mode === 'key' ? 'base' : mode }];
+  if (r.text) parts.push({ geom: r.text, name: 'name' });
+  return core.threeMF(parts, name, [$('cBase').value.toUpperCase(), $('cText').value.toUpperCase()]);
+}
+$('dl3mf').onclick = () => { if (!current) return; save(`${safe(current.name)}_${mode}.3mf`, mf(current, current.name)); };
+$('dlStl').onclick = () => {
+  if (!current) return;
+  const n = safe(current.name), z = {};
+  z[`${n}_1_body.stl`] = core.stl(current.base);
+  if (current.text) z[`${n}_2_name.stl`] = core.stl(current.text);
+  if (dlCap) save(`${n}_stl.zip`, fflate.zipSync(z));
+  else { for (const [f, b] of Object.entries(z)) save(f, b); }
+};
+$('dlAll').onclick = async () => {
+  const list = namesList(); if (!list.length) return;
+  $('dlAll').disabled = true; setMsg('بجهّز ' + list.length + ' اسم...', true);
+  await new Promise((r) => setTimeout(r, 30));
+  const z = {};
+  for (const name of list) {
+    const r = core.build(getFont(fontFor(name)), params(name)); if (!r) continue;
+    const n = safe(name);
+    z[`${n}/${n}.3mf`] = mf(r, name);
+    z[`${n}/${n}_1_body.stl`] = core.stl(r.base);
+    if (r.text) z[`${n}/${n}_2_name.stl`] = core.stl(r.text);
+    r.base.dispose(); r.text && r.text.dispose();
+  }
+  await save(`names_${mode}_${list.length}.zip`, fflate.zipSync(z));
+  $('dlAll').disabled = false;
+};
+regenerate();
+</script>
+</body>
+</html>
